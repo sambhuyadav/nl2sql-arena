@@ -1,3 +1,13 @@
+---
+title: NL2SQL Arena
+emoji: 🏟️
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+license: mit
+---
+
 # NL2SQL Arena
 
 > **An interactive RL arena for training agents to reason over structured data — from natural language to SQL, through a structured Analysis DSL.**
