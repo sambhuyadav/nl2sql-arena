@@ -19,7 +19,7 @@ Log Format (strictly enforced)
 ──────────────────────────────
 [START] task=<name> env=nl2sql-arena model=<model>
 [STEP]  step=<n> action=<dsl> reward=<0.00> done=<true|false> error=<msg|null>
-[END]   success=<true|false> steps=<n> score=<0.00> rewards=<r1,r2,...>
+[END]   success=<true|false> steps=<n> score=<0.000> rewards=<r1,r2,...>
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ DSL syntax — each clause on its own line:
 
 Available tables: orders, customers, products, support_tickets
 Supported functions: sum, avg, count, min, max, avg_hours
-Supported operators: =, !=, >, <, >=, <=, BETWEEN, LIKE, IN
+Supported operators: =, !=, >, <, >=, <=, BETWEEN, LIKE, IN, IS NULL, IS NOT NULL
 
 Special function:
   avg_hours(col1, col2)  computes AVG hours between two datetime columns.
@@ -180,7 +180,7 @@ def _log_end(
     rewards_str  = ",".join(f"{r:.2f}" for r in rewards)
     print(
         f"[END] success={success_str} steps={steps} "
-        f"score={score:.2f} rewards={rewards_str}",
+        f"score={score:.3f} rewards={rewards_str}",
         flush=True,
     )
 

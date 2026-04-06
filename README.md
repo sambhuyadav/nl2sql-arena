@@ -287,10 +287,11 @@ QUERY support_tickets
 | Component | Reward |
 |---|---|
 | Valid DSL syntax | +0.05 |
-| Correct columns (uses avg_hours with datetime cols) | +0.15 |
-| Correct GROUP BY issue_type | +0.15 |
-| Correct WHERE (priority=high) | +0.10 |
+| Correct table (support_tickets) | +0.10 |
+| Correct WHERE (priority=high, resolved_at IS NOT NULL) | +0.15 |
+| Correct aggregation (avg_hours by issue_type) | +0.20 |
 | Result matches ground truth | +0.25 |
+| EXPLAIN clause bonus | +0.05 |
 
 **Additional penalty:** -0.10 for re-submitting the same broken DSL unchanged.
 
@@ -463,8 +464,8 @@ Results on default seeded database (`Faker.seed(42)`), measured at `temperature=
 | simple-lookup | 1 | 0.800 | 100% |
 | multi-table-join | 1 | 0.800 | 100% |
 | product-revenue-breakdown | 1 | 0.800 | 100% |
-| debug-and-fix | 1 | 0.750 | 100% |
-| **Overall** | **1** | **0.788** | **100%** |
+| debug-and-fix | 1 | 0.800 | 100% |
+| **Overall** | **1** | **0.800** | **100%** |
 
 *Model solves all four tasks on the first step, demonstrating that Qwen2.5-72B-Instruct can reliably parse the Analysis DSL grammar and self-correct from the broken DSL in Task 4.*
 
@@ -501,12 +502,13 @@ body: {
       "done": false
     },
     "reward": {
-      "value": 0.42,
+      "value": 0.52,
       "breakdown": {
         "syntax": 0.05, "table": 0.10, "aggregation": 0.20,
-        "explain_bonus": 0.05, "result_close": 0.12,
-        "where": 0.0,
-        "total": 0.42
+        "explain_bonus": 0.05, "result_match": 0.12,
+        "grader.result_quality": 0.48,
+        "total_raw": 0.52,
+        "total": 0.52
       },
       "message": "Valid DSL syntax (+0.05) | Correct table(s) selected (+0.10) | Aggregation (+0.20) | EXPLAIN clause bonus (+0.05) | Result match (+0.12, grade=0.48)"
     },
@@ -514,7 +516,7 @@ body: {
   }
 ```
 
-*Reward is 0.42 because the WHERE clause is missing the year filter (2023). The agent's result sums all APAC years.*
+*Reward is 0.52 because the WHERE clause is missing the year filter (2023). The agent sums all APAC years, so result_match is partial (grade=0.48). No WHERE component is awarded.*
 
 ```
 ─── Step 2 ─────────────────────────────────────────────────────────
@@ -531,23 +533,24 @@ body: {
       "last_result_preview": "{'total_revenue': 1247832.15}",
       "last_error": null,
       "step_count": 2,
-      "done": false
+      "done": true
     },
     "reward": {
-      "value": 0.75,
+      "value": 0.80,
       "breakdown": {
         "syntax": 0.05, "table": 0.10, "where": 0.15,
         "aggregation": 0.20, "result_match": 0.25,
         "explain_bonus": 0.05,
-        "total": 0.75
+        "total_raw": 0.80,
+        "total": 0.80
       },
       "message": "Valid DSL syntax (+0.05) | Correct table(s) (+0.10) | WHERE conditions (+0.15) | Aggregation (+0.20) | Result match (+0.25) | EXPLAIN bonus (+0.05)"
     },
-    "done": false
+    "done": true
   }
 ```
 
-*Agent self-corrected, added the year filter, and achieved a 0.75 reward.*
+*Agent self-corrected, added the year filter, achieved 0.80 reward (all components earned), and the episode terminated early (reward ≥ 0.60 threshold).*
 
 ---
 

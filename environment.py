@@ -130,7 +130,7 @@ class ArenaEnv:
         # ── 4. Check Terminal Condition ───────────────────────────────────────
         # End early on a high-quality result so the agent isn't penalised for
         # re-submitting a correct answer while waiting for max_steps.
-        # Threshold 0.60: covers Task1 (max 0.80), Task2 (max 0.65), Task3 (max 0.80).
+        # Threshold 0.60: covers Task1 (max 0.80), Task2 (max 0.80), Task3 (max 0.80).
         if self._step_count >= task.max_steps or reward.value >= 0.60:
             self._done = True
 
