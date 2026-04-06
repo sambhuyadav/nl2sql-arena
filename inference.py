@@ -19,7 +19,7 @@ Log Format (strictly enforced)
 ──────────────────────────────
 [START] task=<name> env=nl2sql-arena model=<model>
 [STEP]  step=<n> action=<dsl> reward=<0.00> done=<true|false> error=<msg|null>
-[END]   success=<true|false> steps=<n> score=<0.000> rewards=<r1,r2,...>
+[END]   success=<true|false> steps=<n> score=<0.00> rewards=<r1,r2,...>
 """
 
 from __future__ import annotations
@@ -174,7 +174,7 @@ def _log_end(
     rewards_str  = ",".join(f"{r:.2f}" for r in rewards)
     print(
         f"[END] success={success_str} steps={steps} "
-        f"score={score:.3f} rewards={rewards_str}",
+        f"score={score:.2f} rewards={rewards_str}",
         flush=True,
     )
 

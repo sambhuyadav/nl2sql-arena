@@ -91,11 +91,18 @@ def compute_reward(
             messages.append("Correct table(s) selected (+0.10)")
 
     # ── 5. WHERE Conditions ───────────────────────────────────────────────────
-    if parse_result.success and "where" in clauses:
-        where_score = _score_where(task_id, clauses.get("where", ""))
-        if where_score > 0:
-            breakdown["where"] = where_score
-            messages.append(f"WHERE conditions (+{where_score:.2f})")
+    if parse_result.success:
+        if task_id == "multi-table-join":
+            # For this task the correct answer has NO WHERE clause.
+            # Reward the agent for not applying a spurious filter.
+            if "where" not in clauses:
+                breakdown["where"] = 0.15
+                messages.append("No spurious WHERE filter (+0.15)")
+        elif "where" in clauses:
+            where_score = _score_where(task_id, clauses.get("where", ""))
+            if where_score > 0:
+                breakdown["where"] = where_score
+                messages.append(f"WHERE conditions (+{where_score:.2f})")
 
     # ── 6. Aggregation ────────────────────────────────────────────────────────
     if parse_result.success and "aggregate" in clauses:
