@@ -459,15 +459,15 @@ python inference.py
 
 Results on default seeded database (`Faker.seed(42)`), measured at `temperature=0.2`:
 
-| Task | Avg Steps | Score | Success |
+| Task | Steps | Score | Success |
 |---|---|---|---|
 | simple-lookup | 1 | 0.800 | 100% |
 | multi-table-join | 1 | 0.800 | 100% |
 | product-revenue-breakdown | 1 | 0.800 | 100% |
-| debug-and-fix | 1 | 0.800 | 100% |
-| **Overall** | **1** | **0.800** | **100%** |
+| debug-and-fix | 1 | 0.750 | 100% |
+| **Overall** | **1** | **0.788** | **100%** |
 
-*Model solves all four tasks on the first step, demonstrating that Qwen2.5-72B-Instruct can reliably parse the Analysis DSL grammar and self-correct from the broken DSL in Task 4.*
+*Qwen2.5-72B-Instruct solves all four tasks in a single step, correctly identifying both bugs in Task 4; the 0.750 score (vs 0.800 for easier tasks) reflects a missing `resolved_at IS NOT NULL` filter — the model fixes the broken DSL but omits the NULL guard, demonstrating that the hard task genuinely penalizes incomplete solutions even when the final numeric result is correct.*
 
 ---
 
