@@ -50,7 +50,7 @@ NL2SQL_TASK   = os.environ.get("NL2SQL_TASK",   "")          # empty = run all
 NL2SQL_BENCH  = os.environ.get("NL2SQL_BENCH",  "nl2sql-arena")
 ENV_BASE_URL  = os.environ.get("ENV_BASE_URL",  "http://localhost:7860")
 
-ALL_TASKS = ["simple-lookup", "multi-table-join", "debug-and-fix"]
+ALL_TASKS = ["simple-lookup", "multi-table-join", "product-revenue-breakdown", "debug-and-fix"]
 
 # ─── LLM Client ───────────────────────────────────────────────────────────────
 
@@ -74,6 +74,7 @@ DSL syntax — each clause on its own line:
     [LIMIT <n>]
     [EXPLAIN <your reasoning here>]
 
+Available tables: orders, customers, products, support_tickets
 Supported functions: sum, avg, count, min, max, avg_hours
 Supported operators: =, !=, >, <, >=, <=, BETWEEN, LIKE, IN
 
@@ -255,6 +256,11 @@ def run_task(task_id: str) -> Tuple[bool, int, float, List[float]]:
         # Build user turn
         user_msg = _build_user_message(obs)
         conversation.append({"role": "user", "content": user_msg})
+
+        # Cap history: system prompt + last 6 turns to avoid token overflow
+        # with different LLMs used in Phase 2 evaluation
+        if len(conversation) > 13:  # 1 system + 6 turns * 2 messages
+            conversation = [conversation[0]] + conversation[-12:]
 
         # LLM generates DSL
         try:

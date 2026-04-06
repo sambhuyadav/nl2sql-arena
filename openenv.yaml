@@ -31,6 +31,13 @@ tasks:
     description: >
       Rank the top 5 customers by total spend using a JOIN, GROUP BY, ORDER BY,
       and LIMIT across two tables.
+  - id: product-revenue-breakdown
+    difficulty: medium
+    max_steps: 8
+    description: >
+      Rank all product categories by average order revenue in 2023 using a
+      JOIN between orders and products, a date filter, AVG aggregation grouped
+      by category, and a DESC sort.
   - id: debug-and-fix
     difficulty: hard
     max_steps: 10
@@ -49,3 +56,7 @@ session_management:
 docker:
   port: 7860
   base_image: python:3.11-slim
+runtime_constraints:
+  vcpu: 2
+  memory_gb: 8
+  max_episode_minutes: 20

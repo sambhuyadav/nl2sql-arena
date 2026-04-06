@@ -140,7 +140,18 @@ def execute_query(sql: str, timeout: float = 10.0) -> List[Dict[str, Any]]:
 
 
 def is_db_ready() -> bool:
-    return os.path.exists(DB_PATH)
+    """Return True only if the DB file exists and contains seeded data."""
+    if not os.path.exists(DB_PATH):
+        return False
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM orders")
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count > 0
+    except Exception:
+        return False
 
 
 # ─── Seed Data ────────────────────────────────────────────────────────────────

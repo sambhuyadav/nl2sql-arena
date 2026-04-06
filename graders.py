@@ -30,12 +30,28 @@ def _first_numeric(row: Dict[str, Any]) -> Optional[float]:
 
 def _name_from_row(row: Dict[str, Any]) -> str:
     """Extract a normalised customer name string from a result row."""
+    # Prefer explicit name keys first
     for key in ("name", "customer_name", "Name", "NAME"):
         if key in row and isinstance(row[key], str):
             return row[key].lower().strip()
-    # Fall back to first string value longer than 2 chars
+    # Skip known non-name columns; prefer values with a space (full names)
+    _skip_keys = {"country", "segment", "email", "status", "region", "category"}
+    for k, v in row.items():
+        if k.lower() in _skip_keys:
+            continue
+        if isinstance(v, str) and len(v) > 3 and " " in v:
+            return v.lower().strip()
+    return ""
+
+
+def _category_from_row(row: Dict[str, Any]) -> str:
+    """Extract a normalised category string from a result row."""
+    for key in ("category", "Category", "CATEGORY"):
+        if key in row and isinstance(row[key], str):
+            return row[key].lower().strip()
+    # Fall back to first short string (categories are single words)
     for v in row.values():
-        if isinstance(v, str) and len(v) > 2:
+        if isinstance(v, str) and 2 < len(v) <= 20:
             return v.lower().strip()
     return ""
 
@@ -67,9 +83,9 @@ def grade_simple_lookup(
         return 1.0 if value == 0.0 else 0.0
 
     relative_err = abs(value - gt_f) / abs(gt_f)
-    if relative_err <= 0.01:   # within 1 %
+    if relative_err <= 0.01:
         return 1.0
-    if relative_err <= 0.30:   # within 30 % — right column, wrong filter
+    if relative_err <= 0.30:
         return 0.5
     return 0.0
 
@@ -95,28 +111,64 @@ def grade_multi_table_join(
     if not gt_names:
         return 0.0
 
-    # Positional match (full credit)
     positional = sum(
         1 for g, r in zip(gt_names, result_names) if g == r and g != ""
     )
-
-    # Unordered match (partial credit: 60 % of unordered matches)
     unordered = sum(1 for n in result_names if n in gt_names and n != "")
 
     if positional == len(gt_names):
         return 1.0
     if positional > 0:
         return positional / len(gt_names)
-    # Any correct names present, just wrong order?
     if unordered > 0:
         return 0.6 * unordered / len(gt_names)
-    # Result is present but names don't match at all
     if execution_result:
         return 0.05
     return 0.0
 
 
-# ─── Task 3: debug-and-fix ────────────────────────────────────────────────────
+# ─── Task 3: product-revenue-breakdown ───────────────────────────────────────
+
+
+def grade_product_revenue_breakdown(
+    execution_result: Optional[List[Dict[str, Any]]],
+    ground_truth: Dict[str, Any],
+) -> float:
+    """
+    Positional match on category ranking.
+    Full score requires all categories present in correct order.
+    Partial credit for correct categories in wrong order.
+    Returns 0.0–1.0.
+    """
+    gt_rows: List[Dict[str, Any]] = ground_truth.get("by_category", [])
+    if not gt_rows or not execution_result:
+        return 0.0
+
+    gt_cats     = [_category_from_row(r) for r in gt_rows]
+    result_cats = [_category_from_row(r) for r in execution_result]
+
+    if not gt_cats:
+        return 0.0
+
+    positional = sum(
+        1 for g, r in zip(gt_cats, result_cats) if g == r and g != ""
+    )
+
+    if positional == len(gt_cats):
+        return 1.0
+    if positional > 0:
+        return positional / len(gt_cats)
+
+    unordered = sum(1 for n in result_cats if n in gt_cats and n != "")
+    if unordered > 0:
+        return 0.6 * unordered / len(gt_cats)
+
+    if execution_result:
+        return 0.05
+    return 0.0
+
+
+# ─── Task 4: debug-and-fix ────────────────────────────────────────────────────
 
 
 def grade_debug_and_fix(
@@ -129,10 +181,8 @@ def grade_debug_and_fix(
     """
     gt_by_type: Dict[str, float] = ground_truth.get("by_type", {})
     if not gt_by_type or not execution_result:
-        # At least reward returning any rows for this task
         return 0.05 if execution_result else 0.0
 
-    # Build {issue_type: avg_hours} from execution result
     result_by_type: Dict[str, float] = {}
     for row in execution_result:
         issue = row.get("issue_type")
@@ -144,7 +194,7 @@ def grade_debug_and_fix(
             result_by_type[issue] = avg_val
 
     if not result_by_type:
-        return 0.05  # returned rows but couldn't parse them
+        return 0.05
 
     total = len(gt_by_type)
     matched = sum(
@@ -178,6 +228,8 @@ def grade_result(
         g = grade_simple_lookup(execution_result, ground_truth)
     elif task_id == "multi-table-join":
         g = grade_multi_table_join(execution_result, ground_truth)
+    elif task_id == "product-revenue-breakdown":
+        g = grade_product_revenue_breakdown(execution_result, ground_truth)
     elif task_id == "debug-and-fix":
         g = grade_debug_and_fix(execution_result, ground_truth)
     else:

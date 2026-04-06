@@ -9,7 +9,7 @@ Component weights
 ─────────────────
 +0.05  valid DSL syntax
 +0.10  correct table(s) selected
-+0.15  correct WHERE conditions
++0.15  correct WHERE conditions (or absence of spurious filter)
 +0.20  correct aggregation function and column
 +0.25  result matches ground truth (from grader)
 +0.05  EXPLAIN clause present and non-empty  (bonus)
@@ -47,7 +47,7 @@ def compute_reward(
     parse_result    : Output of DSLParser.parse(action.dsl).
     execution_result: Rows returned by execute_query(), or None on error/no-parse.
     sql_error       : Error string from SQL execution (or None).
-    task_id         : One of 'simple-lookup', 'multi-table-join', 'debug-and-fix'.
+    task_id         : One of the registered task IDs.
     ground_truth    : Pre-computed ground truth dict for this task.
     step            : Current step number (1-indexed).
     prev_dsl        : DSL string submitted in the immediately preceding step.
@@ -93,8 +93,7 @@ def compute_reward(
     # ── 5. WHERE Conditions ───────────────────────────────────────────────────
     if parse_result.success:
         if task_id == "multi-table-join":
-            # For this task the correct answer has NO WHERE clause.
-            # Reward the agent for not applying a spurious filter.
+            # Correct answer has NO WHERE clause — reward not applying a spurious filter
             if "where" not in clauses:
                 breakdown["where"] = 0.15
                 messages.append("No spurious WHERE filter (+0.15)")
@@ -120,12 +119,10 @@ def compute_reward(
             ground_truth=ground_truth,
             parse_success=parse_result.success,
         )
-        # Use 0.25 as the cap for grader-sourced result match reward
         result_reward = grade * 0.25
         if result_reward > 0:
             breakdown["result_match"] = round(result_reward, 4)
             messages.append(f"Result match (+{result_reward:.2f}, grade={grade:.2f})")
-        # Merge grader sub-breakdown for transparency
         for k, v in grade_breakdown.items():
             breakdown[f"grader.{k}"] = v
 
@@ -162,11 +159,12 @@ def compute_reward(
 # ─── Internal Helpers ─────────────────────────────────────────────────────────
 
 
-def _expected_tables(task_id: str) -> frozenset[str]:
+def _expected_tables(task_id: str) -> frozenset:
     return {
-        "simple-lookup":    frozenset({"orders"}),
-        "multi-table-join": frozenset({"orders", "customers"}),
-        "debug-and-fix":    frozenset({"support_tickets"}),
+        "simple-lookup":             frozenset({"orders"}),
+        "multi-table-join":          frozenset({"orders", "customers"}),
+        "product-revenue-breakdown": frozenset({"orders", "products"}),
+        "debug-and-fix":             frozenset({"support_tickets"}),
     }.get(task_id, frozenset())
 
 
@@ -183,8 +181,15 @@ def _score_where(task_id: str, where_str: str) -> float:
         return min(score, 0.15)
 
     if task_id == "multi-table-join":
-        # WHERE is optional; no deduction for missing it
         return 0.0
+
+    if task_id == "product-revenue-breakdown":
+        score = 0.0
+        if "ORDER_DATE" in w:
+            score += 0.07
+        if "2023" in w or "BETWEEN" in w:
+            score += 0.08
+        return min(score, 0.15)
 
     if task_id == "debug-and-fix":
         score = 0.0
@@ -212,6 +217,15 @@ def _score_aggregation(task_id: str, agg: Dict[str, Any]) -> float:
         if func == "sum" and "revenue" in args:
             grp = (agg.get("group_by") or "").lower()
             if "name" in grp or "customer" in grp:
+                return 0.20
+            return 0.12
+        if func:
+            return 0.05
+
+    if task_id == "product-revenue-breakdown":
+        if func == "avg" and "revenue" in args:
+            grp = (agg.get("group_by") or "").lower()
+            if "category" in grp:
                 return 0.20
             return 0.12
         if func:

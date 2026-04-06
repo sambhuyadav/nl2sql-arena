@@ -22,7 +22,7 @@ class TaskDefinition:
     max_steps: int
     question: str
     schema_hint_extra: str          # task-specific hints appended to global schema
-    broken_dsl: Optional[str]       # only Task 3
+    broken_dsl: Optional[str]       # only Task 4
     ground_truth_sql: str           # authoritative SQL for computing ground truth
     ground_truth: Dict[str, Any] = field(default_factory=dict)  # populated at runtime
 
@@ -76,6 +76,30 @@ TASKS: Dict[str, TaskDefinition] = {
         ),
     ),
 
+    "product-revenue-breakdown": TaskDefinition(
+        task_id="product-revenue-breakdown",
+        difficulty="medium",
+        max_steps=8,
+        question=(
+            "Which product categories generated the highest average revenue per order "
+            "in 2023? Rank all categories from highest to lowest."
+        ),
+        schema_hint_extra=(
+            "\nFocus tables: orders JOIN products\n"
+            "Hint: join on product_id, filter order_date in 2023, "
+            "aggregate avg(revenue), group by products.category, sort DESC."
+        ),
+        broken_dsl=None,
+        ground_truth_sql=(
+            "SELECT products.category, AVG(orders.revenue) AS avg_revenue "
+            "FROM orders "
+            "JOIN products ON orders.product_id = products.product_id "
+            "WHERE orders.order_date BETWEEN '2023-01-01' AND '2023-12-31' "
+            "GROUP BY products.category "
+            "ORDER BY avg_revenue DESC"
+        ),
+    ),
+
     "debug-and-fix": TaskDefinition(
         task_id="debug-and-fix",
         difficulty="hard",
@@ -91,7 +115,6 @@ TASKS: Dict[str, TaskDefinition] = {
             "group by issue_type.\n"
             "Available DSL function: avg_hours(col1, col2) — average hours between two datetime columns."
         ),
-        # ── Broken DSL presented to the agent ─────────────────────────────────
         # Bug 1: wrong column name `resolution_time` (does not exist)
         # Bug 2: missing BY issue_type in AGGREGATE
         broken_dsl=(
@@ -121,8 +144,6 @@ def _load_ground_truths() -> None:
     from database import execute_query, is_db_ready  # local import to avoid circularity
 
     if not is_db_ready():
-        # DB not yet seeded (e.g. first import before docker build step).
-        # Ground truths will remain empty dicts; the graders handle that gracefully.
         return
 
     for task in TASKS.values():
@@ -135,6 +156,9 @@ def _load_ground_truths() -> None:
             elif task.task_id == "multi-table-join":
                 task.ground_truth = {"top5": rows}
 
+            elif task.task_id == "product-revenue-breakdown":
+                task.ground_truth = {"by_category": rows}
+
             elif task.task_id == "debug-and-fix":
                 by_type: Dict[str, float] = {}
                 for row in rows:
@@ -145,11 +169,9 @@ def _load_ground_truths() -> None:
                 task.ground_truth = {"by_type": by_type}
 
         except Exception as exc:
-            # Non-fatal; graders will return 0 for the result-match component
             print(f"[tasks] Warning: could not load ground truth for {task.task_id!r}: {exc}")
 
 
-# Load immediately when module is imported (DB must exist by this point in prod)
 _load_ground_truths()
 
 
