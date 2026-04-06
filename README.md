@@ -223,10 +223,11 @@ QUERY orders
 | Component | Reward |
 |---|---|
 | Valid DSL syntax | +0.05 |
-| Correct JOIN with customer_id | +0.10 |
-| Correct aggregation (sum revenue by customer) | +0.15 |
-| SORT DESC + LIMIT 5 | +0.10 |
+| Correct table + JOIN (orders, customers) | +0.10 |
+| No spurious WHERE filter (correct for all-customers query) | +0.15 |
+| Correct aggregation (sum revenue by customer name) | +0.20 |
 | Result matches ground truth (top-5 ordered) | +0.25 |
+| EXPLAIN clause bonus | +0.05 |
 
 ---
 
@@ -413,8 +414,14 @@ curl http://localhost:7860/health
 ### Run Inference Baseline
 
 ```bash
+# Required per OpenEnv submission spec
 export HF_TOKEN="your_hf_token_here"
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+
+# Point at local server (or your HF Space URL)
 export ENV_BASE_URL="http://localhost:7860"
+
 python inference.py
 ```
 
@@ -427,9 +434,9 @@ Results on default seeded database (`Faker.seed(42)`), measured at `temperature=
 | Task | Avg Steps | Score | Success |
 |---|---|---|---|
 | simple-lookup | 1 | 0.800 | 100% |
-| multi-table-join | 1 | 0.650 | 100% |
+| multi-table-join | 1 | 0.800 | 100% |
 | debug-and-fix | 1 | 0.750 | 100% |
-| **Overall** | **1** | **0.733** | **100%** |
+| **Overall** | **1** | **0.783** | **100%** |
 
 *Model solves all three tasks on the first step, demonstrating that Qwen2.5-72B-Instruct can reliably parse the Analysis DSL grammar and self-correct from the broken DSL in Task 3.*
 

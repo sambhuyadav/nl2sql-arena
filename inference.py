@@ -39,7 +39,12 @@ from openai import OpenAI
 
 API_BASE_URL  = os.environ.get("API_BASE_URL",  "https://router.huggingface.co/v1")
 MODEL_NAME    = os.environ.get("MODEL_NAME",    "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN      = os.environ.get("HF_TOKEN",      "")
+HF_TOKEN      = (
+    os.environ.get("HF_TOKEN")
+    or os.environ.get("OPENAI_API_KEY")
+    or os.environ.get("API_KEY")
+    or ""
+)
 IMAGE_NAME    = os.environ.get("IMAGE_NAME",    "nl2sql-arena")
 NL2SQL_TASK   = os.environ.get("NL2SQL_TASK",   "")          # empty = run all
 NL2SQL_BENCH  = os.environ.get("NL2SQL_BENCH",  "nl2sql-arena")
