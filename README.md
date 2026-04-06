@@ -52,7 +52,7 @@ Most NL2SQL benchmarks (Spider, BIRD, WikiSQL) are **static evaluation datasets*
 │  Observation fields:                  │  4. Grade result    │  │
 │  • question (NL)                      │  5. Compute reward  │  │
 │  • schema_hint                        │                     │  │
-│  • broken_dsl (Task 3)                └─────────────────────┘  │
+│  • broken_dsl (Task 4)                └─────────────────────┘  │
 │  • last_sql_executed                          │                 │
 │  • last_result_preview                   ArenaReward           │
 │  • last_error                         {value, breakdown, msg}  │
@@ -77,7 +77,6 @@ QUERY <table>
   [AGGREGATE <fn>(<col>[, <col2>]) AS <alias> [BY <group_col>[, ...]]]
   [SORT   <col> [ASC|DESC]]
   [LIMIT  <n>]
-  [COMPARE previous_period]
   [EXPLAIN <free-text reasoning>]
 ```
 
@@ -124,7 +123,7 @@ ORDER BY total_revenue DESC
 LIMIT 5
 ```
 
-### Example 3 — Time-difference aggregation (Task 3 pattern)
+### Example 3 — Time-difference aggregation (Task 4 pattern)
 
 ```
 QUERY support_tickets
@@ -163,10 +162,10 @@ The `EXPLAIN` clause may appear inside the DSL *or* as a separate `explain` fiel
 
 ```python
 class ArenaObservation(BaseModel):
-    task_id: str                        # 'simple-lookup' | 'multi-table-join' | 'debug-and-fix'
+    task_id: str                        # 'simple-lookup' | 'multi-table-join' | 'product-revenue-breakdown' | 'debug-and-fix'
     question: str                       # Natural language business question
     schema_hint: str                    # Table schemas + enum values + FK info
-    broken_dsl: Optional[str]           # Task 3 only — buggy DSL with 2 deliberate errors
+    broken_dsl: Optional[str]           # Task 4 only — buggy DSL with 2 deliberate errors
     last_sql_executed: Optional[str]    # SQL compiled and executed in the previous step
     last_result_preview: Optional[str]  # First 3 rows of the last result set
     last_error: Optional[str]           # DSL parse error or SQL execution error
@@ -231,7 +230,35 @@ QUERY orders
 
 ---
 
-### Task 3 — `debug-and-fix` (Hard, max 10 steps)
+### Task 3 — `product-revenue-breakdown` (Medium, max 8 steps)
+
+**Business question:**
+> "Which product categories generated the highest average revenue per order in 2023? Rank all categories from highest to lowest."
+
+**Expected DSL pattern:**
+```
+QUERY orders
+  WHERE order_date BETWEEN "2023-01-01" AND "2023-12-31"
+  JOIN products ON orders.product_id = products.product_id
+  AGGREGATE avg(revenue) AS avg_revenue BY products.category
+  SORT avg_revenue DESC
+  EXPLAIN Joining orders with products to rank categories by average order revenue in 2023
+```
+
+**Grader:** Positional match on category ranking. Full score requires all categories in correct order; partial credit for correct categories in wrong order.
+
+| Component | Reward |
+|---|---|
+| Valid DSL syntax | +0.05 |
+| Correct tables (orders + products JOIN) | +0.10 |
+| Correct WHERE (order_date in 2023) | +0.15 |
+| Correct aggregation (avg revenue by category) | +0.20 |
+| Result matches ground truth (categories ranked) | +0.25 |
+| EXPLAIN clause bonus | +0.05 |
+
+---
+
+### Task 4 — `debug-and-fix` (Hard, max 10 steps)
 
 **Business question:**
 > "Find the average resolution time in hours for high-priority support tickets, grouped by issue type."
@@ -435,10 +462,11 @@ Results on default seeded database (`Faker.seed(42)`), measured at `temperature=
 |---|---|---|---|
 | simple-lookup | 1 | 0.800 | 100% |
 | multi-table-join | 1 | 0.800 | 100% |
+| product-revenue-breakdown | 1 | 0.800 | 100% |
 | debug-and-fix | 1 | 0.750 | 100% |
-| **Overall** | **1** | **0.783** | **100%** |
+| **Overall** | **1** | **0.788** | **100%** |
 
-*Model solves all three tasks on the first step, demonstrating that Qwen2.5-72B-Instruct can reliably parse the Analysis DSL grammar and self-correct from the broken DSL in Task 3.*
+*Model solves all four tasks on the first step, demonstrating that Qwen2.5-72B-Instruct can reliably parse the Analysis DSL grammar and self-correct from the broken DSL in Task 4.*
 
 ---
 
