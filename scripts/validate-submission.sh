@@ -67,7 +67,14 @@ else
 fi
 
 BUILD_OK=false
-timeout "$DOCKER_BUILD_TIMEOUT" docker build "$DOCKER_CONTEXT" && BUILD_OK=true
+if command -v timeout &>/dev/null; then
+  timeout "$DOCKER_BUILD_TIMEOUT" docker build "$DOCKER_CONTEXT" && BUILD_OK=true
+elif command -v gtimeout &>/dev/null; then
+  gtimeout "$DOCKER_BUILD_TIMEOUT" docker build "$DOCKER_CONTEXT" && BUILD_OK=true
+else
+  # No timeout utility (e.g. macOS without coreutils) — run without timeout
+  docker build "$DOCKER_CONTEXT" && BUILD_OK=true
+fi
 
 if [ "$BUILD_OK" = true ]; then
   pass "Docker build succeeded"
