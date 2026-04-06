@@ -1,0 +1,51 @@
+name: nl2sql-arena
+version: "1.0.0"
+description: >
+  An interactive RL arena for training agents to reason over structured data —
+  from natural language to SQL, through a structured Analysis DSL.
+  Unlike static NL2SQL benchmarks (Spider, BIRD, WikiSQL), NL2SQL Arena features
+  shaped rewards, adversarial debug tasks, and an intermediate DSL layer designed
+  for agent training, not just evaluation.
+tags:
+  - openenv
+  - sql
+  - nl2sql
+  - data-analysis
+  - dsl
+  - reinforcement-learning
+  - enterprise-ai
+action_space: dsl_string
+observation_space: structured_text
+reward_range: [0.0, 1.0]
+entry_point: "server:app"
+tasks:
+  - id: simple-lookup
+    difficulty: easy
+    max_steps: 5
+    description: >
+      Compute total revenue for a specific region and year using a single-table
+      filter and aggregation.
+  - id: multi-table-join
+    difficulty: medium
+    max_steps: 8
+    description: >
+      Rank the top 5 customers by total spend using a JOIN, GROUP BY, ORDER BY,
+      and LIMIT across two tables.
+  - id: debug-and-fix
+    difficulty: hard
+    max_steps: 10
+    description: >
+      Identify and fix two deliberate bugs in a provided broken DSL query to
+      compute average ticket resolution time grouped by issue type.
+endpoints:
+  reset:   POST /reset
+  step:    POST /step
+  state:   GET  /state
+  health:  GET  /health
+  metrics: GET  /metrics
+session_management:
+  via: X-Session-Id header
+  max_concurrent: 32
+docker:
+  port: 7860
+  base_image: python:3.11-slim
