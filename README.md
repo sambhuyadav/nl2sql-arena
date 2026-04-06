@@ -6,6 +6,8 @@ colorTo: green
 sdk: docker
 pinned: false
 license: mit
+tags:
+  - openenv
 ---
 
 # NL2SQL Arena
