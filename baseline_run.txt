@@ -1,14 +1,12 @@
 [START] task=simple-lookup env=nl2sql-arena model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action=QUERY orders   WHERE region = "APAC" AND order_date BETWEEN "2023-01-01" AND "2023-12-31"   AGGREGATE sum(revenue) AS total_revenue   EXPLAIN Filter orders by APAC region and 2023 date range, then aggregate total revenue. reward=0.80 done=true error=null
-[END] success=true steps=1 score=0.800 rewards=0.80
+[STEP] step=1 action=QUERY orders   WHERE region = "APAC" AND order_date BETWEEN "2023-01-01" AND "2023-12-31"   AGGREGATE sum(revenue) AS total_revenue   EXPLAIN Filter orders by region 'APAC' and order_date in 2023, then sum the revenue to get total revenue for the APAC region in 2023. reward=0.80 done=true error=null
+[END] success=true steps=1 rewards=0.80
 [START] task=multi-table-join env=nl2sql-arena model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action=QUERY orders   JOIN customers ON orders.customer_id = customers.customer_id   AGGREGATE sum(revenue) AS total_spend BY customers.name, customers.country   SORT total_spend DESC   LIMIT 5   EXPLAIN Join orders with customers on customer_id, aggregate total revenue per customer, sort by total spend descending, limit to top 5. reward=0.80 done=true error=null
-[END] success=true steps=1 score=0.800 rewards=0.80
+[STEP] step=1 action=QUERY orders   JOIN customers ON orders.customer_id = customers.customer_id   AGGREGATE sum(orders.revenue) AS total_spend BY customers.name, customers.country   SORT total_spend DESC   LIMIT 5   EXPLAIN Join orders and customers on customer_id, aggregate total revenue by customer name and country, sort by total spend in descending order, and limit to top 5. reward=0.80 done=true error=null
+[END] success=true steps=1 rewards=0.80
 [START] task=product-revenue-breakdown env=nl2sql-arena model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action=QUERY orders   JOIN products ON orders.product_id = products.product_id   WHERE order_date BETWEEN "2023-01-01" AND "2023-12-31"   AGGREGATE avg(revenue) AS avg_revenue BY products.category   SORT avg_revenue DESC   EXPLAIN Join orders with products to get the category, filter for 2023 orders, aggregate average revenue by category, and sort in descending order. reward=0.80 done=true error=null
-[END] success=true steps=1 score=0.800 rewards=0.80
+[STEP] step=1 action=QUERY orders   JOIN products ON orders.product_id = products.product_id   WHERE order_date BETWEEN "2023-01-01" AND "2023-12-31"   AGGREGATE avg(revenue) AS avg_revenue BY products.category   SORT avg_revenue DESC   EXPLAIN Join orders with products to get the category, filter for 2023 orders, aggregate average revenue by category, and sort descending. reward=0.80 done=true error=null
+[END] success=true steps=1 rewards=0.80
 [START] task=debug-and-fix env=nl2sql-arena model=Qwen/Qwen2.5-72B-Instruct
 [STEP] step=1 action=QUERY support_tickets   WHERE priority = "high"   AGGREGATE avg_hours(resolved_at, created_at) AS avg_resolution BY issue_type   SORT avg_resolution DESC   EXPLAIN Filtered high-priority tickets, computed average resolution time in hours, grouped by issue type, and sorted by average resolution time in descending order. reward=0.75 done=true error=null
-[END] success=true steps=1 score=0.750 rewards=0.75
-
-[SUMMARY] tasks=4 avg_score=0.788
+[END] success=true steps=1 rewards=0.75
