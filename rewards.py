@@ -142,8 +142,8 @@ def compute_reward(
 
     # ── Compute and Clamp ─────────────────────────────────────────────────────
     # Validator requires strictly (0, 1) — never exactly 0.0 or 1.0.
-    # Rewards are printed with 2 decimal places, so floor must be >= 0.01
-    # (0.001 rounds to "0.00") and ceiling must be <= 0.99.
+    # Rewards are printed with 2 decimal places, so floor must be 0.01
+    # (0.001 would round to "0.00" = 0.0, failing the check).
     raw = sum(v for k, v in breakdown.items() if not k.startswith("grader."))
     clamped = round(max(0.01, min(0.99, raw)), 6)
 
