@@ -45,13 +45,16 @@ NL2SQL_TASK   = os.environ.get("NL2SQL_TASK",   "")          # empty = run all
 NL2SQL_BENCH  = os.environ.get("NL2SQL_BENCH",  "nl2sql-arena")
 ENV_BASE_URL  = os.environ.get("ENV_BASE_URL",  "http://localhost:7860")
 
+if HF_TOKEN is None:
+    raise ValueError("HF_TOKEN environment variable is required")
+
 ALL_TASKS = ["simple-lookup", "multi-table-join", "product-revenue-breakdown", "debug-and-fix"]
 
 # ─── LLM Client ───────────────────────────────────────────────────────────────
 
 llm = OpenAI(
     base_url=API_BASE_URL,
-    api_key=HF_TOKEN or "dummy-key",
+    api_key=HF_TOKEN,
 )
 
 # ─── System Prompt ────────────────────────────────────────────────────────────
@@ -168,14 +171,12 @@ def _log_step(
 def _log_end(
     success: bool,
     steps: int,
-    score: float,
     rewards: List[float],
 ) -> None:
-    success_str  = "true" if success else "false"
-    rewards_str  = ",".join(f"{r:.2f}" for r in rewards)
+    success_str = "true" if success else "false"
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={success_str} steps={steps} "
-        f"score={score:.3f} rewards={rewards_str}",
+        f"[END] success={success_str} steps={steps} rewards={rewards_str}",
         flush=True,
     )
 
@@ -234,72 +235,81 @@ def run_task(task_id: str) -> Tuple[bool, int, float, List[float]]:
     (success, steps_taken, final_score, per_step_rewards)
     """
     env     = EnvClient(ENV_BASE_URL)
-    obs     = env.reset(task_id)
     rewards: List[float] = []
-    done    = False
     step    = 0
 
+    # Emit [START] before anything else — spec requires it at episode begin
+    # and [END] must always follow even on exception.
     _log_start(task_id)
 
-    conversation: List[Dict[str, str]] = [
-        {"role": "system", "content": SYSTEM_PROMPT}
-    ]
+    try:
+        obs  = env.reset(task_id)
+        done = False
 
-    while not done:
-        step += 1
+        conversation: List[Dict[str, str]] = [
+            {"role": "system", "content": SYSTEM_PROMPT}
+        ]
 
-        # Build user turn
-        user_msg = _build_user_message(obs)
-        conversation.append({"role": "user", "content": user_msg})
+        while not done:
+            step += 1
 
-        # Cap history: system prompt + last 6 turns to avoid token overflow
-        # with different LLMs used in Phase 2 evaluation
-        if len(conversation) > 13:  # 1 system + 6 turns * 2 messages
-            conversation = [conversation[0]] + conversation[-12:]
+            # Build user turn
+            user_msg = _build_user_message(obs)
+            conversation.append({"role": "user", "content": user_msg})
 
-        # LLM generates DSL
-        try:
-            dsl_response = _call_llm(conversation)
-        except Exception as exc:
-            dsl_response = (
-                f'QUERY orders\n'
-                f'  EXPLAIN Failed to call LLM: {exc}'
-            )
+            # Cap history: system prompt + last 6 turns to avoid token overflow
+            # with different LLMs used in Phase 2 evaluation
+            if len(conversation) > 13:  # 1 system + 6 turns * 2 messages
+                conversation = [conversation[0]] + conversation[-12:]
 
-        # Strip any accidental markdown fences
-        dsl_clean = dsl_response.strip()
-        if dsl_clean.startswith("```"):
-            lines = dsl_clean.splitlines()
-            dsl_clean = "\n".join(
-                ln for ln in lines if not ln.strip().startswith("```")
-            ).strip()
+            # LLM generates DSL
+            try:
+                dsl_response = _call_llm(conversation)
+            except Exception as exc:
+                dsl_response = (
+                    f'QUERY orders\n'
+                    f'  EXPLAIN Failed to call LLM: {exc}'
+                )
 
-        # Add assistant turn to conversation history
-        conversation.append({"role": "assistant", "content": dsl_clean})
+            # Strip any accidental markdown fences
+            dsl_clean = dsl_response.strip()
+            if dsl_clean.startswith("```"):
+                lines = dsl_clean.splitlines()
+                dsl_clean = "\n".join(
+                    ln for ln in lines if not ln.strip().startswith("```")
+                ).strip()
 
-        # Submit to environment
-        try:
-            result  = env.step(dsl_clean)
-            obs     = result["observation"]
-            reward  = float(result["reward"]["value"])
-            done    = bool(result["done"])
-            error   = obs.get("last_error")
-        except Exception as exc:
-            reward  = 0.0
-            done    = True
-            error   = str(exc)
-            obs     = {}
+            # Add assistant turn to conversation history
+            conversation.append({"role": "assistant", "content": dsl_clean})
 
-        rewards.append(reward)
-        _log_step(step, dsl_clean, reward, done, error)
+            # Submit to environment
+            try:
+                result  = env.step(dsl_clean)
+                obs     = result["observation"]
+                reward  = float(result["reward"]["value"])
+                done    = bool(result["done"])
+                error   = obs.get("last_error")
+            except Exception as exc:
+                reward  = 0.0
+                done    = True
+                error   = str(exc)
+                obs     = {}
 
-        if done:
-            break
+            rewards.append(reward)
+            _log_step(step, dsl_clean, reward, done, error)
+
+            if done:
+                break
+
+    except Exception as exc:
+        # Always emit [END] — even when reset() or the loop itself fails
+        _log_end(success=False, steps=step, rewards=rewards)
+        return False, step, 0.0, rewards
 
     final_score = rewards[-1] if rewards else 0.0
     success     = final_score >= 0.5
 
-    _log_end(success, step, final_score, rewards)
+    _log_end(success=success, steps=step, rewards=rewards)
     return success, step, final_score, rewards
 
 
@@ -330,14 +340,11 @@ def main() -> int:
             if not success:
                 exit_code = 1
         except Exception:
+            # run_task() guarantees [START]+[END] internally; this is a last-resort
+            # safety net for truly unexpected failures (e.g. import errors).
             traceback.print_exc(file=sys.stderr)
-            _log_end(success=False, steps=0, score=0.0, rewards=[])
             all_scores.append(0.0)
             exit_code = 1
-
-    if len(tasks_to_run) > 1 and all_scores:
-        overall = sum(all_scores) / len(all_scores)
-        print(f"\n[SUMMARY] tasks={len(tasks_to_run)} avg_score={overall:.3f}", flush=True)
 
     return exit_code
 

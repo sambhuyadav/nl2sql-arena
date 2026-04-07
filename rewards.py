@@ -194,9 +194,9 @@ def _score_where(task_id: str, where_str: str) -> float:
     if task_id == "debug-and-fix":
         score = 0.0
         if "PRIORITY" in w and "HIGH" in w:
-            score += 0.10
-        if "RESOLVED_AT" in w and "NULL" in w:
-            score += 0.05
+            score += 0.075
+        if "RESOLVED_AT" in w and "IS NOT NULL" in w:
+            score += 0.075
         return min(score, 0.15)
 
     return 0.0
