@@ -10,7 +10,7 @@ Environment Variables
 API_BASE_URL   LLM router base URL  (default: https://router.huggingface.co/v1)
 MODEL_NAME     Model ID             (default: Qwen/Qwen2.5-72B-Instruct)
 HF_TOKEN       Bearer token for the HF router
-IMAGE_NAME     Docker image name    (used with from_docker_image() if available)
+LOCAL_IMAGE_NAME Docker image name  (used with from_docker_image() if available)
 NL2SQL_TASK    Run only this task   (default: all tasks)
 NL2SQL_BENCH   Benchmark name tag   (default: nl2sql-arena)
 ENV_BASE_URL   Environment API URL  (default: http://localhost:7860)
@@ -39,13 +39,8 @@ from openai import OpenAI
 
 API_BASE_URL  = os.environ.get("API_BASE_URL",  "https://router.huggingface.co/v1")
 MODEL_NAME    = os.environ.get("MODEL_NAME",    "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN      = (
-    os.environ.get("HF_TOKEN")
-    or os.environ.get("OPENAI_API_KEY")
-    or os.environ.get("API_KEY")
-    or ""
-)
-IMAGE_NAME    = os.environ.get("IMAGE_NAME",    "nl2sql-arena")
+HF_TOKEN      = os.environ.get("HF_TOKEN")
+LOCAL_IMAGE_NAME = os.environ.get("LOCAL_IMAGE_NAME")
 NL2SQL_TASK   = os.environ.get("NL2SQL_TASK",   "")          # empty = run all
 NL2SQL_BENCH  = os.environ.get("NL2SQL_BENCH",  "nl2sql-arena")
 ENV_BASE_URL  = os.environ.get("ENV_BASE_URL",  "http://localhost:7860")
@@ -56,7 +51,7 @@ ALL_TASKS = ["simple-lookup", "multi-table-join", "product-revenue-breakdown", "
 
 llm = OpenAI(
     base_url=API_BASE_URL,
-    api_key=HF_TOKEN if HF_TOKEN else "dummy-key",
+    api_key=HF_TOKEN or "dummy-key",
 )
 
 # ─── System Prompt ────────────────────────────────────────────────────────────
