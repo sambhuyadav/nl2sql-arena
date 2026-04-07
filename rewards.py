@@ -141,8 +141,9 @@ def compute_reward(
         messages.append(f"Step penalty ({penalty:.2f}, step {step})")
 
     # ── Compute and Clamp ─────────────────────────────────────────────────────
+    # Validator requires strictly (0, 1) — never exactly 0.0 or 1.0.
     raw = sum(v for k, v in breakdown.items() if not k.startswith("grader."))
-    clamped = round(max(0.0, min(1.0, raw)), 6)
+    clamped = round(max(0.001, min(0.999, raw)), 6)
 
     breakdown["total_raw"] = round(raw, 6)
     breakdown["total"] = clamped
