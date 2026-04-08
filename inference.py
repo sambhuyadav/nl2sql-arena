@@ -171,12 +171,13 @@ def _log_step(
 def _log_end(
     success: bool,
     steps: int,
+    score: float,
     rewards: List[float],
 ) -> None:
     success_str = "true" if success else "false"
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={success_str} steps={steps} rewards={rewards_str}",
+        f"[END] success={success_str} steps={steps} score={score:.3f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -303,13 +304,14 @@ def run_task(task_id: str) -> Tuple[bool, int, float, List[float]]:
 
     except Exception as exc:
         # Always emit [END] — even when reset() or the loop itself fails
-        _log_end(success=False, steps=step, rewards=rewards)
-        return False, step, 0.0, rewards
+        final_score = max(0.01, min(0.99, rewards[-1])) if rewards else 0.01
+        _log_end(success=False, steps=step, score=final_score, rewards=rewards)
+        return False, step, final_score, rewards
 
-    final_score = rewards[-1] if rewards else 0.0
+    final_score = max(0.01, min(0.99, rewards[-1])) if rewards else 0.01
     success     = final_score >= 0.5
 
-    _log_end(success=success, steps=step, rewards=rewards)
+    _log_end(success=success, steps=step, score=final_score, rewards=rewards)
     return success, step, final_score, rewards
 
 
@@ -343,7 +345,7 @@ def main() -> int:
             # run_task() guarantees [START]+[END] internally; this is a last-resort
             # safety net for truly unexpected failures (e.g. import errors).
             traceback.print_exc(file=sys.stderr)
-            all_scores.append(0.0)
+            all_scores.append(0.01)
             exit_code = 1
 
     return exit_code

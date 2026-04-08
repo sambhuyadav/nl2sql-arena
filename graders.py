@@ -243,6 +243,6 @@ def grade_result(
     elif task_id == "debug-and-fix":
         g = grade_debug_and_fix(execution_result, ground_truth)
     else:
-        g = 0.0
+        g = _clamp(0.0)
 
     return g, {"result_quality": round(g, 4)}
