@@ -16,7 +16,7 @@ tags:
   - enterprise-ai
 action_space: dsl_string
 observation_space: structured_text
-reward_range: [0.0, 1.0]
+reward_range: [0.01, 0.99]
 entry_point: "server:app"
 tasks:
   - id: simple-lookup

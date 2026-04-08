@@ -29,7 +29,7 @@ Most NL2SQL benchmarks (Spider, BIRD, WikiSQL) are **static evaluation datasets*
 
 | Feature | Static Benchmarks | NL2SQL Arena |
 |---|---|---|
-| Reward signal | Binary (0 or 1) | Shaped (0.0–1.0, per-component) |
+| Reward signal | Binary (0 or 1) | Shaped (0.01–0.99, per-component) |
 | Intermediate language | None | Analysis DSL |
 | Adversarial tasks | No | Yes — broken DSL to debug |
 | RL-ready | No | Yes — step-based, multi-turn |
@@ -301,7 +301,7 @@ QUERY support_tickets
 
 ## 7. Reward Function
 
-All rewards are **shaped** (not sparse) and clamped to **[0.0, 1.0]**.
+All rewards are **shaped** (not sparse) and clamped to strictly **(0.01, 0.99)** — never exactly 0 or 1.
 
 ### Positive Components
 
