@@ -289,14 +289,14 @@ def run_task(task_id: str) -> Tuple[bool, int, float, List[float]]:
                 reward  = float(result["reward"]["value"])
                 done    = bool(result["done"])
                 error   = obs.get("last_error")
+                rewards.append(reward)
+                _log_step(step, dsl_clean, reward, done, error)
             except Exception as exc:
-                reward  = 0.0
-                done    = True
-                error   = str(exc)
-                obs     = {}
-
-            rewards.append(reward)
-            _log_step(step, dsl_clean, reward, done, error)
+                # env.step() did not return — end episode without logging a step reward
+                done  = True
+                error = str(exc)
+                obs   = {}
+                print(f"[WARN] env.step() failed at step {step}: {error}", file=sys.stderr, flush=True)
 
             if done:
                 break

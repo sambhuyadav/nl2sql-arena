@@ -17,6 +17,15 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 
 
+# ─── Score boundaries ────────────────────────────────────────────────────────
+# The validator enforces strictly (0, 1) — exact 0.0 and 1.0 are rejected.
+# All grader outputs pass through _clamp() which is defined once here.
+
+def _clamp(score: float) -> float:
+    """Clamp a raw grade to the open interval (0, 1) required by the validator."""
+    return max(0.01, min(0.99, score))
+
+
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
@@ -64,30 +73,31 @@ def grade_simple_lookup(
     ground_truth: Dict[str, Any],
 ) -> float:
     """
-    Returns 1.0  if the aggregated value matches GT within 1 % tolerance.
+    Returns ~1.0 if the aggregated value matches GT within 1 % tolerance.
     Returns 0.5  if the value is in the right ballpark (within 30 %).
-    Returns 0.0  if no result, null value, or completely wrong.
+    Returns ~0.0 if no result, null value, or completely wrong.
+    All values clamped to strictly (0, 1).
     """
     if not execution_result:
-        return 0.0
+        return _clamp(0.0)
 
     row = execution_result[0]
     value = _first_numeric(row)
     gt_value = ground_truth.get("value")
 
     if value is None or gt_value is None:
-        return 0.0
+        return _clamp(0.0)
 
     gt_f = float(gt_value)
     if gt_f == 0.0:
-        return 1.0 if value == 0.0 else 0.0
+        return _clamp(1.0 if value == 0.0 else 0.0)
 
     relative_err = abs(value - gt_f) / abs(gt_f)
     if relative_err <= 0.01:
-        return 1.0
+        return _clamp(1.0)
     if relative_err <= 0.30:
-        return 0.5
-    return 0.0
+        return _clamp(0.5)
+    return _clamp(0.0)
 
 
 # ─── Task 2: multi-table-join ─────────────────────────────────────────────────
@@ -103,13 +113,13 @@ def grade_multi_table_join(
     """
     gt_rows: List[Dict[str, Any]] = ground_truth.get("top5", [])
     if not gt_rows or not execution_result:
-        return 0.0
+        return _clamp(0.0)
 
     gt_names     = [_name_from_row(r) for r in gt_rows]
     result_names = [_name_from_row(r) for r in execution_result[:5]]
 
     if not gt_names:
-        return 0.0
+        return _clamp(0.0)
 
     positional = sum(
         1 for g, r in zip(gt_names, result_names) if g == r and g != ""
@@ -117,14 +127,14 @@ def grade_multi_table_join(
     unordered = sum(1 for n in result_names if n in gt_names and n != "")
 
     if positional == len(gt_names):
-        return 1.0
+        return _clamp(1.0)
     if positional > 0:
-        return positional / len(gt_names)
+        return _clamp(positional / len(gt_names))
     if unordered > 0:
-        return 0.6 * unordered / len(gt_names)
+        return _clamp(0.6 * unordered / len(gt_names))
     if execution_result:
-        return 0.05
-    return 0.0
+        return _clamp(0.05)
+    return _clamp(0.0)
 
 
 # ─── Task 3: product-revenue-breakdown ───────────────────────────────────────
@@ -142,30 +152,30 @@ def grade_product_revenue_breakdown(
     """
     gt_rows: List[Dict[str, Any]] = ground_truth.get("by_category", [])
     if not gt_rows or not execution_result:
-        return 0.0
+        return _clamp(0.0)
 
     gt_cats     = [_category_from_row(r) for r in gt_rows]
     result_cats = [_category_from_row(r) for r in execution_result]
 
     if not gt_cats:
-        return 0.0
+        return _clamp(0.0)
 
     positional = sum(
         1 for g, r in zip(gt_cats, result_cats) if g == r and g != ""
     )
 
     if positional == len(gt_cats):
-        return 1.0
+        return _clamp(1.0)
     if positional > 0:
-        return positional / len(gt_cats)
+        return _clamp(positional / len(gt_cats))
 
     unordered = sum(1 for n in result_cats if n in gt_cats and n != "")
     if unordered > 0:
-        return 0.6 * unordered / len(gt_cats)
+        return _clamp(0.6 * unordered / len(gt_cats))
 
     if execution_result:
-        return 0.05
-    return 0.0
+        return _clamp(0.05)
+    return _clamp(0.0)
 
 
 # ─── Task 4: debug-and-fix ────────────────────────────────────────────────────
@@ -181,7 +191,7 @@ def grade_debug_and_fix(
     """
     gt_by_type: Dict[str, float] = ground_truth.get("by_type", {})
     if not gt_by_type or not execution_result:
-        return 0.05 if execution_result else 0.0
+        return _clamp(0.05 if execution_result else 0.0)
 
     result_by_type: Dict[str, float] = {}
     for row in execution_result:
@@ -194,7 +204,7 @@ def grade_debug_and_fix(
             result_by_type[issue] = avg_val
 
     if not result_by_type:
-        return 0.05
+        return _clamp(0.05)
 
     total = len(gt_by_type)
     matched = sum(
@@ -202,7 +212,7 @@ def grade_debug_and_fix(
         for issue, gt_val in gt_by_type.items()
         if issue in result_by_type and abs(result_by_type[issue] - gt_val) <= 2.0
     )
-    return matched / total
+    return _clamp(matched / total)
 
 
 # ─── Router ───────────────────────────────────────────────────────────────────
